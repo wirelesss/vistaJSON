@@ -17,24 +17,35 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
     @IBOutlet weak var labTemperatura: UILabel!
     
     @IBOutlet weak var pickerView: UIPickerView!
+    // Codigos Antiguos
     // Caracas  VEXX0008
     // Paris    FRXX0076
     // Grenoble FRXX0153
-    
+    // -----------------------
+    // Codigos NUEVOS
+    // Caracas  395269
+    // Paris    615702
+    // Grenoble 593720
+    // -----------------------
     // Arreglo de Arreglos:
     var ciudades: Array<Array<String>> = Array<Array<String>>()
+    var unidadTemperatura:String = ""
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
         
-        self.ciudades.append(["Caracas", "VEXX0008"])
-        self.ciudades.append(["Paris",   "FRX0076"])
-        self.ciudades.append(["Grenoble", "FRX00153"])
+        self.ciudades.append(["Caracas", "395269"])
+        self.ciudades.append(["Paris",   "615702"])
+        self.ciudades.append(["Grenoble", "593720"])
         // Do any additional setup after loading the view, typically from a nib.
         
         self.pickerView.delegate = self
         self.pickerView.dataSource = self
+        
+        // Select the first row programmatically
+        self.pickerView.selectedRow(inComponent: 0)
+        self.pickerView(pickerView, didSelectRow: 0, inComponent: 0)
     }
     
 
@@ -60,9 +71,37 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
 
     func pickerView(_ pickerView: UIPickerView, didSelectRow row: Int, inComponent component: Int)
     {
-        let urls = "https://query.yahooapis.com/v1/public/yql?format=json&q=SELECT%20*%20FROM%20weather.forecast%20WHERE%20u%20=%20%27c%27%20and%20location%20=%20%27"
+        /*
+         Ejemplo de URL:
+         Version Antigua:
+         https://query.yahooapis.com/v1/public/yql?format=json&q=SELECT%20*%20FROM%20weather.forecast%20WHERE%20u%20=%20%27c%27%20and%20location%20=%20%27VEXX0008%27
+         Nueva Version de query Yahoo:
+         https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20=   +  WOEID  +     &format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys
+         
+         Pagina de documentacion de Yahoo Weather API:
+         https://developer.yahoo.com/weather/documentation.html
+         
+         PASOS:
+         1) Ir a http://weather.yahoo.com/
+         2) buscar por una ciudad
+         3) Ejecutar en consola del navegador
+            para obtener el codigo numerico WOEID
+            $('div[data-woeid]').getAttribute('data-woeid')
+         
+         La URL para obtener JSON tiene la siguiente forma:
+         http://weather.yahooapis.com/forecastrss?w=location
+         donde location sera el codigo WOEID obtenido en paso 3).
+         
+         Fin.
+        */
+        let urls = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20="
         print("Codigo Ciudad:" + self.ciudades[row][1])
+        
+        /* Para Antigua URL:
         let url = NSURL(string: urls + self.ciudades[row][1] + "%27")
+        */
+        /* Para Nueva URL: */
+        let url = NSURL(string: urls + self.ciudades[row][1] + "&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys")
         let datos = NSData(contentsOf: url! as URL)
         print(datos!)
         do {
@@ -71,11 +110,15 @@ class ViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDataSo
             let dico2 = dico1["query"] as! NSDictionary
             if(dico2["results"] != nil){
                 if(dico2["results"] != nil){
-                    let dico3 = dico2["results"] as! NSDictionary
-                    let channel = dico3["channel"] as! NSDictionary
+                    let results = dico2["results"] as! NSDictionary
+                    let channel = results["channel"] as! NSDictionary
                     let units = channel["units"] as! NSDictionary
-                    self.labCiudad.text = units["speed"] as! NSString as String // return "km/h"
-                    self.labTemperatura.text = units["temperature"] as! NSString as String // return "C"
+                    let location = channel["location"] as! NSDictionary
+                    self.labCiudad.text = location["city"] as! NSString as String
+                    unidadTemperatura = units["temperature"] as! NSString as String
+                    let item = channel["item"] as! NSDictionary
+                    let condition = item["condition"] as! NSDictionary
+                    self.labTemperatura.text = condition["temp"] as! NSString as String + unidadTemperatura
                 }
             }
             
